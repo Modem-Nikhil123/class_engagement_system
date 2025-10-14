@@ -1,0 +1,13 @@
+{
+  "name": "classsync",
+  "version": "1.0.0",
+  "description": "A comprehensive web application designed for **Centralized Timetable & Substitution Management with Multi-Branch Admin Control**, streamlining communication between **Super Admins, HODs, Teachers, and Students** for efficient educational management.",
+  "main": "index.js",
+  "scripts": {
+    "build":"",
+    "start": ""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
