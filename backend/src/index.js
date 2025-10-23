@@ -14,7 +14,7 @@ const app=express();
 app.use(express.json());
 app.use(cookieParser());  
 app.use(cors({
-    origin:"http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
     credentials:true,
 }));
 mongoose.connect(process.env.MONGODB_URL)
@@ -27,6 +27,7 @@ app.use('/reminders',reminderRoutes);
 app.use('/substitute',substituteRoutes);
 app.use('/teachers',teacherRoutes);
 app.use('/admin',adminRoutes);
-app.listen((3000),()=>{
-    console.log("server is running");
-}) 
+const PORT = process.env.PORT || 3000;
+app.listen(PORT,()=>{
+    console.log(`Server is running on port ${PORT}`);
+})
