@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../components/common/Layout';
 import ReminderModal from '../components/teacher/ReminderModal';
 import SubstituteRequests from '../components/teacher/SubstituteRequests';
+import EnhancedSubstituteAssignmentModal from '../components/teacher/EnhancedSubstituteAssignmentModal';
 import CalendarModal from '../components/common/CalendarModal';
 import DateScheduleView from '../components/common/DateScheduleView';
 import useClassStore from '../stores/classStore';
@@ -17,10 +18,12 @@ const TeacherDashboard = () => {
   
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [isSubstituteModalOpen, setIsSubstituteModalOpen] = useState(false);
   const [currentReminder, setCurrentReminder] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   // const [showDateView, setShowDateView] = useState(false);
   const [editingSlot, setEditingSlot] = useState(null);
+  const [selectedSlotForSubstitute, setSelectedSlotForSubstitute] = useState(null);
   const [statusUpdate, setStatusUpdate] = useState({
     status: 'engaged',
     delayMinutes: 0,
@@ -85,21 +88,6 @@ const TeacherDashboard = () => {
     if (!editingSlot) return;
 
     try {
-      let finalStatus = statusUpdate.status;
-
-      // If status is 'not_taking' and option is 'notify', set status to 'assigning_substitute' and create request
-      if (statusUpdate.status === 'not_taking' && substituteOption === 'notify') {
-        finalStatus = 'assigning_substitute';
-        await createSubstituteRequest({
-          classId: editingSlot.classId,
-          subject: editingSlot.subject,
-          date: editingSlot.date,
-          startTime: editingSlot.startTime,
-          endTime: editingSlot.endTime,
-          room: editingSlot.room
-        });
-      }
-
       await updateClassStatus({
         classId: editingSlot.classId,
         teacherId: editingSlot.teacherId,
@@ -108,8 +96,7 @@ const TeacherDashboard = () => {
         startTime: editingSlot.startTime,
         endTime: editingSlot.endTime,
         room: editingSlot.room,
-        ...statusUpdate,
-        status: finalStatus
+        ...statusUpdate
       });
 
       // Update the local state immediately to reflect changes
@@ -119,8 +106,7 @@ const TeacherDashboard = () => {
         subject: editingSlot.subject,
         startTime: editingSlot.startTime,
         endTime: editingSlot.endTime,
-        ...statusUpdate,
-        status: finalStatus
+        ...statusUpdate
       });
 
       setEditingSlot(null);
@@ -134,6 +120,11 @@ const TeacherDashboard = () => {
     } catch (error) {
       console.error('Failed to update status:', error);
     }
+  };
+
+  const handleAssignSubstitute = (slot) => {
+    setSelectedSlotForSubstitute(slot);
+    setIsSubstituteModalOpen(true);
   };
 
   const handleAbsenceResponse = async (slot, response, actualStatus) => {
@@ -458,15 +449,25 @@ const TeacherDashboard = () => {
                   )}
 
                   {/* Update Status Button */}
-                  <div className="mt-4 pt-3 border-t border-gray-200">
-                    <button
-                      onClick={() => handleEditStatus(slot)}
-                      className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      <span>Update Status</span>
-                    </button>
-                  </div>
+                   <div className="mt-4 pt-3 border-t border-gray-200 space-y-2">
+                     <button
+                       onClick={() => handleEditStatus(slot)}
+                       className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm"
+                     >
+                       <Edit3 className="h-4 w-4" />
+                       <span>Update Status</span>
+                     </button>
+
+                     {slot.status === 'not_taking' && (
+                       <button
+                         onClick={() => handleAssignSubstitute(slot)}
+                         className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 text-sm"
+                       >
+                         <User className="h-4 w-4" />
+                         <span>Assign Substitute</span>
+                       </button>
+                     )}
+                   </div>
                 </div>
               ))}
             </div>
@@ -520,6 +521,16 @@ const TeacherDashboard = () => {
           setCurrentReminder(null);
         }}
         currentReminder={currentReminder}
+      />
+
+      {/* Enhanced Substitute Assignment Modal */}
+      <EnhancedSubstituteAssignmentModal
+        isOpen={isSubstituteModalOpen}
+        onClose={() => {
+          setIsSubstituteModalOpen(false);
+          setSelectedSlotForSubstitute(null);
+        }}
+        classSlot={selectedSlotForSubstitute}
       />
 
       {/* Status Update Modal */}
@@ -581,67 +592,28 @@ const TeacherDashboard = () => {
 
               {statusUpdate.status === 'not_taking' && (
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Choose an option:</label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="substituteOption"
-                          value="provide"
-                          checked={substituteOption === 'provide'}
-                          onChange={(e) => setSubstituteOption(e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Provide substitute teacher ID</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="substituteOption"
-                          value="notify"
-                          checked={substituteOption === 'notify'}
-                          onChange={(e) => setSubstituteOption(e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className="text-sm">Send notification to available teachers</span>
-                      </label>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      <h4 className="font-medium text-yellow-800">Substitute Assignment Required</h4>
                     </div>
+                    <p className="text-sm text-yellow-700 mb-3">
+                      Since you're not taking this class, you need to assign a substitute teacher.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setEditingSlot(null);
+                        setIsSubstituteModalOpen(true);
+                        setSelectedSlotForSubstitute(editingSlot);
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      <User className="h-4 w-4" />
+                      <span>Assign Substitute Teacher</span>
+                    </button>
                   </div>
-
-                  {substituteOption === 'provide' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Substitute Teacher ID</label>
-                      <input
-                        type="text"
-                        value={statusUpdate.substituteTeacherId}
-                        onChange={(e) => setStatusUpdate({ ...statusUpdate, substituteTeacherId: e.target.value })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter substitute teacher ID"
-                      />
-                    </div>
-                  )}
-
-                  {substituteOption === 'notify' && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-800">
-                        <strong>Note:</strong> An email will be sent to all available teachers for this time slot.
-                        The first teacher to accept will be assigned as substitute.
-                      </p>
-                    </div>
-                  )}
                 </div>
               )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Remarks (Optional)</label>
-                <textarea
-                  value={statusUpdate.remarks}
-                  onChange={(e) => setStatusUpdate({ ...statusUpdate, remarks: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-20 resize-none"
-                  placeholder="Add any additional notes..."
-                />
-              </div>
 
               <div className="flex space-x-3 pt-4">
                 <button

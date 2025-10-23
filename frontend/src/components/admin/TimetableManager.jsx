@@ -197,126 +197,96 @@ const TimetableManager = () => {
         </div>
 
         {timetable.length > 0 ? (
-          <div className="space-y-6">
-            {/* Complete Timetable Grid */}
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-300">Time Slot</th>
-                    {days.map(day => (
-                      <th key={day} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b border-gray-300">
-                        {day}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {slots.map(slot => (
-                    <tr key={slot} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-300">
-                        Slot {slot}<br/>
-                        <span className="text-xs text-gray-500">
-                          {getStartTime(slot)} - {getEndTime(slot)}
-                        </span>
-                      </td>
-                      {days.map(day => {
-                        const entries = getEntriesForDayAndSlot(day, slot);
-                        return (
-                          <td key={`${day}-${slot}`} className="px-4 py-4 border-r border-gray-300">
-                            <div className="space-y-2 min-h-[80px]">
-                              {entries.map(entry => (
-                                <div
-                                  key={entry.timetableId}
-                                  className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm"
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <h4 className="text-sm font-semibold text-blue-900">{entry.subject}</h4>
-                                        <span className="text-xs font-medium text-indigo-700 bg-indigo-100 px-2 py-1 rounded-full">
-                                          {entry.classId}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center space-x-2 mt-2">
-                                        <User className="h-3 w-3 text-blue-600" />
-                                        <span className="text-xs text-blue-700 font-medium">{entry.teacherId}</span>
+          <div className="space-y-8">
+            {/* Group timetable by sections */}
+            {['C1', 'C2', 'C3', 'C4'].map(section => {
+              const sectionEntries = timetable.filter(entry => entry.classId.includes(section));
+              if (sectionEntries.length === 0) return null;
+
+              // Group section entries by day
+              const sectionByDay = sectionEntries.reduce((acc, entry) => {
+                if (!acc[entry.dayOfWeek]) {
+                  acc[entry.dayOfWeek] = [];
+                }
+                acc[entry.dayOfWeek].push(entry);
+                return acc;
+              }, {});
+
+              return (
+                <div key={section} className="space-y-4">
+                  <h3 className="text-2xl font-bold text-gray-900 border-b border-gray-300 pb-2">
+                    Section {section} Timetable
+                  </h3>
+
+                  {/* Weekly Schedule Grid for this section */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                      <div key={`${section}-${day}`} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        <h4 className="font-medium text-gray-900 mb-3 text-center">{day}</h4>
+
+                        {sectionByDay[day] && sectionByDay[day].length > 0 ? (
+                          <div className="space-y-3">
+                            {sectionByDay[day].map((entry, index) => (
+                              <div
+                                key={`${section}-${day}-${index}`}
+                                className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="text-sm font-bold text-blue-900">{entry.subject}</h4>
+                                      <span className="text-xs font-medium text-indigo-700 bg-indigo-100 px-2 py-1 rounded-full">
+                                        {entry.classId}
+                                      </span>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <div className="flex items-center space-x-2">
+                                        <User className="h-4 w-4 text-blue-600" />
+                                        <span className="text-sm text-blue-700 font-medium">{entry.teacherId}</span>
                                       </div>
                                       {entry.room && (
-                                        <div className="flex items-center space-x-2 mt-1">
-                                          <MapPin className="h-3 w-3 text-green-600" />
-                                          <span className="text-xs text-green-700 font-medium">{entry.room}</span>
+                                        <div className="flex items-center space-x-2">
+                                          <MapPin className="h-4 w-4 text-green-600" />
+                                          <span className="text-sm text-green-700 font-medium">{entry.room}</span>
                                         </div>
                                       )}
-                                      <div className="flex items-center space-x-2 mt-1">
-                                        <Clock className="h-3 w-3 text-purple-600" />
-                                        <span className="text-xs text-purple-700 font-medium">
+                                      <div className="flex items-center space-x-2">
+                                        <Clock className="h-4 w-4 text-purple-600" />
+                                        <span className="text-sm text-purple-700 font-medium">
                                           {entry.startTime} - {entry.endTime}
                                         </span>
                                       </div>
                                     </div>
-                                    <div className="flex space-x-1 ml-2">
-                                      <button
-                                        onClick={() => handleOpenModal(entry)}
-                                        className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
-                                        title="Edit class"
-                                      >
-                                        <Edit3 className="h-3 w-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDelete(entry.timetableId)}
-                                        className="p-1.5 text-red-600 hover:bg-red-100 rounded-md transition-colors"
-                                        title="Delete class"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </div>
+                                  </div>
+                                  <div className="flex space-x-1 ml-3">
+                                    <button
+                                      onClick={() => handleOpenModal(entry)}
+                                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                                      title="Edit class"
+                                    >
+                                      <Edit3 className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(entry.timetableId)}
+                                      className="p-2 text-red-600 hover:bg-red-100 rounded-md transition-colors"
+                                      title="Delete class"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
                                   </div>
                                 </div>
-                              ))}
-                              {entries.length === 0 && (
-                                <div className="text-xs text-gray-400 italic py-4 text-center">No class scheduled</div>
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Complete List View */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Complete Timetable List</h3>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {timetable.map(entry => (
-                  <div key={entry.timetableId} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase">Subject</span>
-                        <p className="text-sm font-semibold text-gray-900">{entry.subject}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-400 text-sm text-center py-4">No classes</p>
+                        )}
                       </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase">Class</span>
-                        <p className="text-sm text-gray-700">{entry.classId}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase">Teacher</span>
-                        <p className="text-sm text-gray-700">{entry.teacherId}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 uppercase">Schedule</span>
-                        <p className="text-sm text-gray-700">{entry.dayOfWeek} - Slot {entry.slot}</p>
-                        <p className="text-xs text-gray-500">{entry.startTime} - {entry.endTime}</p>
-                        {entry.room && <p className="text-xs text-gray-500">Room: {entry.room}</p>}
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">

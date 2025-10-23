@@ -5,17 +5,15 @@ import CalendarModal from '../components/common/CalendarModal';
 import DateScheduleView from '../components/common/DateScheduleView';
 import useClassStore from '../stores/classStore';
 import useAuthStore from '../stores/authStore';
-import { Calendar, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, User, MapPin, AlertCircleIcon, X, Bell, Send, Plus } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, AlertTriangle, MessageSquare, User, MapPin, X, Bell, Send, Plus } from 'lucide-react';
 
 export default function StudentDashboard() {
-  const { classSlots, loading, fetchClassSchedule, markTeacherAbsent, submitQuery, markingAbsent, submittingQuery } = useClassStore();
+  const { classSlots, loading, fetchClassSchedule, submitQuery, submittingQuery } = useClassStore();
   const { user } = useAuthStore();
 
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
-  const [isAbsentModalOpen, setIsAbsentModalOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
   const [queryData, setQueryData] = useState({
     teacherId: '',
     subject: '',
@@ -74,52 +72,7 @@ export default function StudentDashboard() {
     }
   };
 
-  // Check if student can mark teacher as absent
-  const canMarkAbsent = (slot) => {
-    const now = new Date();
-    const classDate = new Date(slot.date);
-    const [startHour, startMinute] = slot.startTime.split(':').map(Number);
-    const classStartTime = new Date(classDate);
-    classStartTime.setHours(startHour, startMinute, 0, 0);
-    
-    // Can mark absent if:
-    // 1. Class is today and has started (15 minutes grace period)
-    // 2. Status is still 'engaged' (not updated by teacher)
-    // 3. Not already marked absent by student
-    const graceTime = new Date(classStartTime.getTime() + 15 * 60000); // 15 minutes after start
-    
-    return (
-      slot.status === 'engaged' &&
-      !slot.studentMarkedAbsent &&
-      now >= graceTime &&
-      classDate.toDateString() === now.toDateString()
-    );
-  };
 
-  const handleMarkAbsent = (slot) => {
-    setSelectedClass(slot);
-    setIsAbsentModalOpen(true);
-  };
-
-  const confirmMarkAbsent = async () => {
-    if (!selectedClass) return;
-    
-    try {
-      await markTeacherAbsent({
-        classId: selectedClass.classId,
-        teacherId: selectedClass.teacherId,
-        date: selectedClass.date,
-        subject: selectedClass.subject,
-        startTime: selectedClass.startTime,
-        endTime: selectedClass.endTime,
-        room: selectedClass.room
-      });
-      setIsAbsentModalOpen(false);
-      setSelectedClass(null);
-    } catch (error) {
-      console.error('Failed to mark teacher absent:', error);
-    }
-  };
 
   const handleSubmitQuery = async (e) => {
     e.preventDefault();
@@ -236,11 +189,6 @@ export default function StudentDashboard() {
                       </p>
                     )}
 
-                    {slot.studentMarkedAbsent && (
-                      <div className="mt-2 p-2 bg-yellow-100 border border-yellow-200 rounded text-xs text-yellow-700">
-                        Teacher has been notified of absence report
-                      </div>
-                    )}
                   </div>
 
                   {/* Status specific information */}
@@ -268,11 +216,6 @@ export default function StudentDashboard() {
                     </div>
                   )}
 
-                  {slot.status === 'absent' && (
-                    <div className="mt-3 p-2 bg-gray-200 bg-opacity-50 rounded text-xs">
-                      Teacher marked as absent by student report
-                    </div>
-                  )}
 
                   {slot.remarks && (
                     <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
@@ -280,18 +223,6 @@ export default function StudentDashboard() {
                     </div>
                   )}
 
-                  {/* Mark Absent Button */}
-                  {canMarkAbsent(slot) && (
-                    <div className="mt-4 pt-3 border-t border-gray-200">
-                      <button
-                        onClick={() => handleMarkAbsent(slot)}
-                        className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors duration-200 text-sm"
-                      >
-                        <AlertCircleIcon className="h-4 w-4" />
-                        <span>Mark Teacher as Absent</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -415,64 +346,6 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      {/* Mark Absent Confirmation Modal */}
-      {isAbsentModalOpen && selectedClass && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-6 border-b">
-              <div className="flex items-center space-x-2">
-                <AlertCircleIcon className="h-5 w-5 text-orange-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Mark Teacher Absent</h2>
-              </div>
-              <button
-                onClick={() => setIsAbsentModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                <h3 className="font-medium text-orange-800 mb-2">Class Details:</h3>
-                <p className="text-sm text-orange-700"><strong>Subject:</strong> {selectedClass.subject}</p>
-                <p className="text-sm text-orange-700"><strong>Teacher:</strong> {selectedClass.teacherName}</p>
-                <p className="text-sm text-orange-700"><strong>Time:</strong> {selectedClass.startTime} - {selectedClass.endTime}</p>
-                {selectedClass.room && (
-                  <p className="text-sm text-orange-700"><strong>Room:</strong> {selectedClass.room}</p>
-                )}
-              </div>
-              
-              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
-                  ⚠️ <strong>Important:</strong> The teacher will be notified and given 30 minutes to respond. 
-                  If they don't respond, the class will be automatically marked as absent.
-                </p>
-              </div>
-              
-              <div className="flex space-x-3">
-                <button
-                  onClick={confirmMarkAbsent}
-                  disabled={markingAbsent}
-                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200 disabled:opacity-50"
-                >
-                  {markingAbsent ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                  ) : (
-                    <AlertCircleIcon className="h-4 w-4" />
-                  )}
-                  <span>{markingAbsent ? 'Reporting...' : 'Confirm Report'}</span>
-                </button>
-                <button
-                  onClick={() => setIsAbsentModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </Layout>
   );
 }

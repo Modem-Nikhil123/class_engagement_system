@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../stores/authStore';
-import { LogOut, User, Bell } from 'lucide-react';
+import { LogOut, User } from 'lucide-react';
 
 const Layout = ({ children, title }) => {
   const { user, logout } = useAuthStore();
@@ -59,12 +59,7 @@ const Layout = ({ children, title }) => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200 relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-              </button>
-              
-              <div className="flex items-center space-x-3 border-l pl-4">
+               <div className="flex items-center space-x-3">
                 <button
                   onClick={handleProfileClick}
                   className={`w-10 h-10 ${getRoleColor(user?.role || '')} rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200 cursor-pointer`}
@@ -80,7 +75,7 @@ const Layout = ({ children, title }) => {
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-1">
                   <button
                     onClick={handleLogout}

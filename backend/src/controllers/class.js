@@ -6,7 +6,7 @@ const departmentModel = require('../models/departments');
 const classStatusModel = require('../models/classStatus');
 const userModel = require('../models/user');
 const queryModel = require('../models/queries');
-const { sendTeacherAbsenceNotification, sendClassStatusUpdateNotification } = require('../lib/emailService');
+const { sendTeacherAbsenceNotification, sendClassStatusUpdateNotification, sendClassStatusUpdateNotificationToStudents } = require('../lib/emailService');
 
 // Fetch class schedule with real-time status
 const fetchSchedule = async (req, res) => {
@@ -19,6 +19,7 @@ const fetchSchedule = async (req, res) => {
     const [year, month, day] = date.split("-").map(Number);
     const localDate = new Date(year, month - 1, day);
     const dayOfWeek = localDate.toLocaleString("en-US", { weekday: "short" });
+    // const dayOfWeek='Mon';
 
     let query = { dayOfWeek };
     let classId=null;
@@ -392,6 +393,104 @@ const handleExpiredGracePeriods = async () => {
   }
 };
 
+// Manual assignment of substitute teacher
+const assignSubstituteTeacher = async (req, res) => {
+  try {
+    const { classId, teacherId, date, subject, startTime, endTime, room, substituteTeacherId, remarks } = req.body;
+    const assignerId = req.user.userId;
+
+    if (!classId || !teacherId || !date || !subject || !startTime || !substituteTeacherId) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Check if substitute teacher exists
+    const substituteTeacher = await teacherModel.findOne({ teacherId: substituteTeacherId });
+    if (!substituteTeacher) {
+      return res.status(404).json({ message: "Substitute teacher not found" });
+    }
+
+    // Get period number from permanent timetable
+    const timetableEntry = await permanentTimetable.findOne({
+      classId,
+      teacherId,
+      subject,
+      startTime
+    });
+
+    let periodNo = 1; // Default fallback
+    if (timetableEntry && timetableEntry.slot) {
+      const parsed = parseInt(timetableEntry.slot);
+      if (!isNaN(parsed) && parsed > 0) {
+        periodNo = parsed;
+      }
+    }
+
+    // Create or update class status with substitute assignment
+    const statusData = {
+      statusId: `${classId}-${teacherId}-${date}-${startTime}`,
+      classId,
+      teacherId,
+      date: new Date(date),
+      periodNo,
+      subject,
+      startTime,
+      endTime: timetableEntry ? timetableEntry.endTime : endTime,
+      room: timetableEntry ? timetableEntry.room : room,
+      status: 'engaged',
+      substituteTeacherId,
+      substituteTeacherName: substituteTeacher.name,
+      remarks: remarks || '',
+      updatedBy: assignerId
+    };
+
+    const existingStatus = await classStatusModel.findOne({
+      classId,
+      teacherId,
+      date: new Date(date),
+      subject,
+      startTime
+    });
+
+    let classStatus;
+    if (existingStatus) {
+      classStatus = await classStatusModel.findByIdAndUpdate(existingStatus._id, statusData, { new: true });
+    } else {
+      classStatus = new classStatusModel(statusData);
+      await classStatus.save();
+    }
+
+    // Send notification to the assigned substitute teacher
+    const substituteUser = await userModel.findOne({ userId: substituteTeacherId });
+    if (substituteUser && substituteUser.email) {
+      const assigner = await userModel.findOne({ userId: assignerId });
+      const assignerName = assigner ? assigner.name : 'Administrator';
+
+      await sendClassStatusUpdateNotification(
+        substituteUser.email,
+        {
+          subject,
+          classId,
+          date,
+          startTime,
+          endTime,
+          room,
+          assignmentType: 'manual_substitute'
+        },
+        'manual_substitute',
+        assignerName
+      );
+    }
+
+    res.status(200).json({
+      message: "Substitute teacher assigned successfully",
+      classStatus
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // Run grace period check every 5 minutes
 setInterval(handleExpiredGracePeriods, 5 * 60 * 1000);
 
@@ -401,5 +500,6 @@ module.exports = {
   markTeacherAbsent,
   respondToAbsenceReport,
   submitQuery,
-  getStudentQueries
+  getStudentQueries,
+  assignSubstituteTeacher
 };

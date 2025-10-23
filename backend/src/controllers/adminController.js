@@ -16,7 +16,7 @@ const getHodDepartment = async (userId) => {
   return department;
 };
 
-// Department Management
+// Department Management 
 const getAllDepartments = async (req, res) => {
   try {
     const departments = await departmentModel.find().populate('hod', 'name').sort({ name: 1 });
@@ -87,7 +87,7 @@ const assignHOD = async (req, res) => {
     }
 
     // If there's an existing HOD for this department, change their role back to teacher
-    if (department.hod && !department.hod.equals(teacher._id)) {
+    if (department.hod && department.hod.toString() !== teacher._id.toString()) {
       const currentHod = await teacherModel.findById(department.hod);
       if (currentHod) {
         await userModel.findOneAndUpdate({ originalId: currentHod.teacherId }, { role: 'teacher' });
@@ -378,7 +378,7 @@ const addTimetableEntry = async (req, res) => {
     // For HOD, check if teacher is in their department
     if (req.user.role === 'hod') {
       const department = await getHodDepartment(req.user.userId);
-      if (!department || !teacher.department.equals(department._id)) {
+      if (!department || teacher.department !== department.departmentId) {
         return res.status(403).json({ message: "Cannot add timetable for teacher outside your department" });
       }
     }
@@ -432,7 +432,7 @@ const updateTimetableEntry = async (req, res) => {
       }
       const teacher = await teacherModel.findOne({ teacherId: entry.teacherId });
       const department = await getHodDepartment(req.user.userId);
-      if (!department || !teacher.department.equals(department._id)) {
+      if (!department || teacher.department !== department.departmentId) {
         return res.status(403).json({ message: "Cannot update timetable for teacher outside your department" });
       }
     }
@@ -466,7 +466,7 @@ const deleteTimetableEntry = async (req, res) => {
       }
       const teacher = await teacherModel.findOne({ teacherId: entry.teacherId });
       const department = await getHodDepartment(req.user.userId);
-      if (!department || !teacher.department.equals(department._id)) {
+      if (!department || teacher.department !== department.departmentId) {
         return res.status(403).json({ message: "Cannot delete timetable for teacher outside your department" });
       }
     }
@@ -515,7 +515,7 @@ const generateTimetable = async (req, res) => {
       // For HOD, ensure teacher is in their department
       if (req.user.role === 'hod') {
         const department = await getHodDepartment(req.user.userId);
-        const teacherDoc = await teacherModel.findOne({ teacherId: teacher.teacherId, department: department._id });
+        const teacherDoc = await teacherModel.findOne({ teacherId: teacher.teacherId, department: department.departmentId });
         if (!teacherDoc) continue; // Skip if teacher not in department
       }
 

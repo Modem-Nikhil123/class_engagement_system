@@ -81,6 +81,103 @@ const sendTeacherAbsenceNotification = async (teacherEmail, teacherName, classDe
 const sendClassStatusUpdateNotification = async (studentEmails, classDetails, status, teacherName) => {
   try {
     const transporter = createTransporter();
+
+    let statusMessage = '';
+    let statusColor = '';
+    let statusIcon = '';
+
+    switch (status) {
+      case 'not_taking':
+        statusMessage = 'Class has been cancelled';
+        statusColor = '#dc3545';
+        statusIcon = '❌';
+        break;
+      case 'delayed':
+        statusMessage = `Class has been delayed by ${classDetails.delayMinutes} minutes`;
+        statusColor = '#fd7e14';
+        statusIcon = '⏰';
+        break;
+      case 'engaged':
+        statusMessage = 'Class is proceeding as scheduled';
+        statusColor = '#28a745';
+        statusIcon = '✅';
+        break;
+      case 'absent':
+        statusMessage = 'Teacher has been marked absent';
+        statusColor = '#6c757d';
+        statusIcon = '⚠️';
+        break;
+      case 'manual_substitute':
+        statusMessage = 'You have been assigned as substitute teacher';
+        statusColor = '#007bff';
+        statusIcon = '👨‍🏫';
+        break;
+    }
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: studentEmails, // Send to single recipient for substitute notifications
+      subject: `${statusIcon} Class Assignment - ${classDetails.subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+          <div style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">${statusIcon} Class Assignment Notification</h1>
+          </div>
+
+          <div style="padding: 20px; background-color: #f9f9f9;">
+            <div style="background: white; padding: 15px; border-radius: 8px; border-left: 4px solid ${statusColor}; margin: 20px 0;">
+              <h3 style="margin: 0 0 10px 0; color: #333;">Class Information:</h3>
+              <p style="margin: 5px 0; color: #666;"><strong>Subject:</strong> ${classDetails.subject}</p>
+              <p style="margin: 5px 0; color: #666;"><strong>Section:</strong> ${classDetails.classId}</p>
+              <p style="margin: 5px 0; color: #666;"><strong>Date:</strong> ${new Date(classDetails.date).toLocaleDateString()}</p>
+              <p style="margin: 5px 0; color: #666;"><strong>Time:</strong> ${classDetails.startTime} - ${classDetails.endTime}</p>
+              <p style="margin: 5px 0; color: #666;"><strong>Room:</strong> ${classDetails.room || 'N/A'}</p>
+            </div>
+
+            <div style="background: ${statusColor}15; padding: 15px; border-radius: 8px; border-left: 4px solid ${statusColor}; margin: 20px 0; text-align: center;">
+              <h2 style="margin: 0; color: ${statusColor}; font-size: 18px;">${statusMessage}</h2>
+            </div>
+
+            ${classDetails.assignmentType === 'manual_substitute' ? `
+              <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; margin: 20px 0;">
+                <h4 style="margin: 0 0 10px 0; color: #155724;">Assignment Details:</h4>
+                <p style="margin: 0; color: #155724;">You have been manually assigned as a substitute teacher for this class. Please prepare accordingly.</p>
+              </div>
+            ` : ''}
+
+            <div style="text-align: center; margin: 30px 0;">
+              <p style="color: #666; font-size: 14px;">
+                Please log into the system to view more details and update class status if needed.
+              </p>
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}"
+                 style="display: inline-block; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; margin-top: 10px;">
+                Access System
+              </a>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
+              <p style="margin: 0; color: #6c757d; font-size: 12px; text-align: center;">
+                This is an automated notification from the Class Engagement System.
+              </p>
+            </div>
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Class assignment notification sent to ${studentEmails}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending class assignment notification:', error);
+    return false;
+  }
+};
+
+// Send class status update notification to students (original function)
+const sendClassStatusUpdateNotificationToStudents = async (studentEmails, classDetails, status, teacherName) => {
+  try {
+    const transporter = createTransporter();
     
     let statusMessage = '';
     let statusColor = '';
@@ -343,6 +440,7 @@ const sendSubstituteRequestNotification = async (teacherEmails, originalTeacherN
 module.exports = {
   sendTeacherAbsenceNotification,
   sendClassStatusUpdateNotification,
+  sendClassStatusUpdateNotificationToStudents,
   sendQueryResponseNotification,
   sendReminderEmail,
   sendSubstituteRequestNotification

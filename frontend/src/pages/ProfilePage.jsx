@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import useAuthStore from '../stores/authStore';
 import Layout from '../components/common/Layout';
-import { User, Mail, Shield, Key, Eye, EyeOff, Save, X, CheckCircle } from 'lucide-react';
+import { User, Mail, Shield, Key, Eye, EyeOff, Save, X, CheckCircle, ArrowLeft } from 'lucide-react';
 
 const ProfilePage = () => {
   const { user, changePassword } = useAuthStore();
@@ -70,6 +70,16 @@ const ProfilePage = () => {
   return (
     <Layout title="Profile">
       <div className="max-w-4xl mx-auto space-y-8">
+        {/* Back Button */}
+        <div className="flex items-center justify-start">
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors duration-200 shadow-sm"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </button>
+        </div>
         {/* 3D Profile Header */}
         <div className="relative">
           {/* 3D Background Elements */}

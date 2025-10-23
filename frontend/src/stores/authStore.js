@@ -16,7 +16,7 @@ const useAuthStore = create((set, get) => ({
   checkAuth: async () => {
     try {
 
-      const res = await axios.get("http://localhost:3000/auth/check", {
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/check`, {
         withCredentials: true,
       });
       set({ user: res.data }); 
@@ -40,7 +40,7 @@ const useAuthStore = create((set, get) => ({
 
     try {
 
-      const res = await axios.post("http://localhost:3000/auth/login",data,{withCredentials:true});
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/login`,data,{withCredentials:true});
 
       // Clear previous user data before setting new user
       useClassStore.getState().clearData();
@@ -65,7 +65,7 @@ const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
 
-      await axios.get('http://localhost:3000/auth/logout',{
+      await axios.get(`${import.meta.env.VITE_API_BASE_URL}/auth/logout`,{
         withCredentials: true,
       });
       set({ user: null });
@@ -87,7 +87,7 @@ const useAuthStore = create((set, get) => ({
 
   changePassword: async (currentPassword, newPassword) => {
     try {
-      const res = await axios.post('http://localhost:3000/auth/change-password', {
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/auth/change-password`, {
         currentPassword,
         newPassword
       }, {

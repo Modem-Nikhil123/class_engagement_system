@@ -2,8 +2,9 @@ import { create } from "zustand";
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const API_URL = "http://localhost:3000/class";
-const SUBSTITUTE_API_URL = "http://localhost:3000/substitute";
+const API_URL = `${import.meta.env.VITE_API_BASE_URL}/class`;
+const SUBSTITUTE_API_URL = `${import.meta.env.VITE_API_BASE_URL}/substitute`;
+const TEACHER_API_URL = `${import.meta.env.VITE_API_BASE_URL}/teachers`;
 let lastFetchedDate = null;
 const useClassStore = create((set, get) => ({
   classSlots: [],
@@ -266,6 +267,67 @@ const useClassStore = create((set, get) => ({
     } catch (error) {
       console.log(error);
       toast.error(error.response?.data?.message || "Failed to decline substitute request");
+      throw error;
+    }
+  },
+
+  // Search teachers for substitute assignment
+  searchTeachers: async (searchParams) => {
+    try {
+      const res = await axios.get(`${TEACHER_API_URL}/search`, {
+        params: searchParams,
+        withCredentials: true,
+      });
+      return res.data;
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to search teachers");
+      throw error;
+    }
+  },
+
+  // Get teacher schedule for preview
+  getTeacherSchedule: async (teacherId, scheduleParams) => {
+    try {
+      const res = await axios.get(`${TEACHER_API_URL}/${teacherId}/schedule`, {
+        params: scheduleParams,
+        withCredentials: true,
+      });
+      return res.data;
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to fetch teacher schedule");
+      throw error;
+    }
+  },
+
+  // Assign substitute teacher manually
+  assignSubstituteTeacher: async (assignmentData) => {
+    try {
+      const res = await axios.post(`${API_URL}/assign-substitute`, assignmentData, {
+        withCredentials: true,
+      });
+      toast.success("Substitute teacher assigned successfully");
+
+      // Update local state immediately for instant UI update
+      const { updateClassSlotStatus } = get();
+      updateClassSlotStatus({
+        classId: assignmentData.classId,
+        teacherId: assignmentData.teacherId,
+        date: assignmentData.date,
+        subject: assignmentData.subject,
+        startTime: assignmentData.startTime,
+        endTime: assignmentData.endTime,
+        status: 'engaged',
+        substituteTeacherId: assignmentData.substituteTeacherId,
+        substituteTeacherName: res.data.classStatus.substituteTeacherName,
+        remarks: assignmentData.remarks || ''
+      });
+
+      return res.data;
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Failed to assign substitute teacher");
       throw error;
     }
   }

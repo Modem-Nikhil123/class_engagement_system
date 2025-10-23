@@ -5,7 +5,8 @@ const {
   getSubstituteRequests,
   acceptSubstituteRequest,
   declineSubstituteRequest,
-  getMySubstituteRequests
+  getMySubstituteRequests,
+  manualAssignSubstitute
 } = require('../controllers/substituteController');
 const { protectRoute } = require('../controllers/auth');
 
@@ -23,5 +24,8 @@ router.put('/:requestId/decline', protectRoute, declineSubstituteRequest);
 
 // Get substitute requests created by teacher
 router.get('/my-requests', protectRoute, getMySubstituteRequests);
+
+// Manual assignment of substitute teacher (admin/HOD only)
+router.post('/manual-assign', protectRoute, manualAssignSubstitute);
 
 module.exports = router;

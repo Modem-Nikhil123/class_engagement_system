@@ -232,10 +232,154 @@ const getMySubstituteRequests = async (req, res) => {
   }
 };
 
+// Manual assignment of substitute teacher
+const manualAssignSubstitute = async (req, res) => {
+  try {
+    const { teacherId, classId, subject, date, startTime, endTime, room } = req.body;
+    const assignerId = req.user.userId;
+
+    // Validate required fields
+    if (!teacherId || !classId || !subject || !date || !startTime || !endTime) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    // Check if teacher exists
+    const teacher = await teacherModel.findOne({ teacherId });
+    if (!teacher) {
+      return res.status(404).json({ message: "Teacher not found" });
+    }
+
+    // Check if assigner has permission (admin or HOD)
+    const assigner = await userModel.findOne({ userId: assignerId });
+    if (!assigner || !['admin', 'hod'].includes(assigner.role)) {
+      return res.status(403).json({ message: "Unauthorized: Only admin or HOD can manually assign substitutes" });
+    }
+
+    // Check teacher's availability for the time slot
+    const [year, month, day] = date.split("-").map(Number);
+    const localDate = new Date(year, month - 1, day);
+    const dayOfWeek = localDate.toLocaleString("en-US", { weekday: "short" });
+
+    // Check permanent schedule conflicts
+    const permanentConflicts = await permanentTimetable.find({
+      teacherId,
+      dayOfWeek,
+      startTime,
+      endTime
+    });
+
+    if (permanentConflicts.length > 0) {
+      return res.status(400).json({
+        message: "Teacher has a permanent class scheduled at this time",
+        conflicts: permanentConflicts
+      });
+    }
+
+    // Check existing assignments on this date
+    const existingAssignments = await classStatusModel.find({
+      teacherId,
+      date: new Date(date),
+      startTime,
+      endTime,
+      status: { $in: ['engaged', 'assigning_substitute'] }
+    });
+
+    if (existingAssignments.length > 0) {
+      return res.status(400).json({
+        message: "Teacher already has an assignment at this time",
+        conflicts: existingAssignments
+      });
+    }
+
+    // Get period number from permanent timetable (if exists for this class)
+    const timetableEntry = await permanentTimetable.findOne({
+      classId,
+      subject,
+      startTime
+    });
+
+    let periodNo = 1; // Default fallback
+    if (timetableEntry && timetableEntry.slot) {
+      const parsed = parseInt(timetableEntry.slot);
+      if (!isNaN(parsed) && parsed > 0) {
+        periodNo = parsed;
+      }
+    }
+
+    // Create or update class status with substitute assignment
+    const statusId = `${classId}-${assignerId}-${date}-${startTime}`;
+    const statusData = {
+      statusId,
+      classId,
+      teacherId: assignerId, // Original teacher or admin assigning
+      date: new Date(date),
+      periodNo,
+      subject,
+      startTime,
+      endTime,
+      room: room || '',
+      status: 'engaged',
+      substituteTeacherId: teacherId,
+      substituteTeacherName: teacher.name,
+      remarks: `Manual substitute assignment: ${teacher.name}`,
+      updatedBy: assignerId
+    };
+
+    const existingStatus = await classStatusModel.findOne({
+      classId,
+      date: new Date(date),
+      subject,
+      startTime
+    });
+
+    let savedStatus;
+    if (existingStatus) {
+      savedStatus = await classStatusModel.findByIdAndUpdate(existingStatus._id, statusData, { new: true });
+    } else {
+      const newStatus = new classStatusModel(statusData);
+      savedStatus = await newStatus.save();
+    }
+
+    // Send notification to the assigned teacher
+    const teacherUser = await userModel.findOne({ userId: teacherId });
+    if (teacherUser && teacherUser.email) {
+      await sendSubstituteRequestNotification([teacherUser.email], assigner.name || 'Administrator', {
+        subject,
+        classId,
+        date,
+        startTime,
+        endTime,
+        room,
+        assignmentType: 'manual'
+      });
+    }
+
+    res.status(201).json({
+      message: "Substitute teacher assigned successfully",
+      assignment: {
+        teacherId: teacher.teacherId,
+        teacherName: teacher.name,
+        classId,
+        subject,
+        date,
+        startTime,
+        endTime,
+        room,
+        assignedBy: assignerId
+      },
+      status: savedStatus
+    });
+  } catch (error) {
+    console.error('Error in manual substitute assignment:', error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   createSubstituteRequest,
   getSubstituteRequests,
   acceptSubstituteRequest,
   declineSubstituteRequest,
-  getMySubstituteRequests
+  getMySubstituteRequests,
+  manualAssignSubstitute
 };
