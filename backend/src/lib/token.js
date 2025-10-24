@@ -8,8 +8,8 @@ const createToken=(userId,res)=>{
     })
     res.cookie('jwt',token,{
         httpOnly:true,
-        sameSite:'Lax',
-        secure:false,
+        sameSite:'None',
+        secure:true,
         maxAge:7*24*60*60*1000
     })
 }
